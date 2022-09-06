@@ -156,6 +156,7 @@ class QuantinuumBackend(Backend):
         provider: Optional[str] = None,
         machine_debug: bool = False,
         api_handler: QuantinuumAPI = DEFAULT_API_HANDLER,
+        request_options: Dict[str, Any] = None,
     ):
         """Construct a new Quantinuum backend.
 
@@ -174,6 +175,9 @@ class QuantinuumBackend(Backend):
         :type simulator: str, optional
         :param api_handler: Instance of API handler, defaults to DEFAULT_API_HANDLER
         :type api_handler: QuantinuumAPI
+        :param request_options: Extra options to add to the request body as a
+          json-style dictionary, defaults to None.
+        :type request_options: Optional[Dict[str, Any]], optional.
         """
 
         super().__init__()
@@ -189,6 +193,11 @@ class QuantinuumBackend(Backend):
         self.api_handler = api_handler
 
         self.api_handler.provider = provider
+
+        if request_options is None:
+            self.request_options = {}
+        else:
+            self.request_options = request_options
 
     @classmethod
     def _available_devices(
@@ -375,7 +384,6 @@ class QuantinuumBackend(Backend):
         wasm_file_handler: Optional[WasmFileHandler] = None,
         pytket_pass: Optional[BasePass] = None,
         parametrized_zz: bool = False,
-        request_options: Optional[Dict[str, Any]] = None,
     ) -> ResultHandle:
         """Submit a qasm program directly to the backend.
 
@@ -397,9 +405,6 @@ class QuantinuumBackend(Backend):
         :param pytket_pass: ``pytket.passes.BasePass`` intended to be applied
            by the backend (beta feature, may be ignored), defaults to None
         :type pytket_pass: Optional[BasePass], optional
-        :param request_options: Extra options to add to the request body as a
-          json-style dictionary, defaults to None
-        :type request_options: Optional[Dict[str, Any]], optional
         :raises WasmUnsupported: WASM submitted to backend that does not support it.
         :raises QuantinuumAPIError: API error.
         :raises ConnectionError: Connection to remote API failed
@@ -437,7 +442,7 @@ class QuantinuumBackend(Backend):
             body["options"]["compiler-options"] = {"parametrized_zz": True}
 
         # apply any overrides or extra options
-        body.update(request_options or {})
+        body.update(self.request_options)
 
         try:
             res = self.api_handler._submit_job(body)
@@ -477,9 +482,6 @@ class QuantinuumBackend(Backend):
         * `wasm_file_handler`: a ``WasmFileHandler`` object for linked WASM module.
         * `pytketpass`: a ``pytket.passes.BasePass`` intended to be applied
            by the backend (beta feature, may be ignored).
-        * `request_options`: extra options to add to the request body as a
-          json-style dictionary
-
         """
         circuits = list(circuits)
         n_shots_list = Backend._get_n_shots_as_list(
@@ -532,9 +534,6 @@ class QuantinuumBackend(Backend):
                     wasm_file_handler=wasm_fh,
                     pytket_pass=pytket_pass,
                     parametrized_zz=circ.n_gates_of_type(OpType.ZZPhase) > 0,
-                    request_options=cast(
-                        Dict[str, Any], kwargs.get("request_options", {})
-                    ),
                 )
 
                 handle = ResultHandle(handle[0], json.dumps(ppcirc_rep))
