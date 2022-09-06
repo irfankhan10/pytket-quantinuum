@@ -156,7 +156,7 @@ class QuantinuumBackend(Backend):
         provider: Optional[str] = None,
         machine_debug: bool = False,
         api_handler: QuantinuumAPI = DEFAULT_API_HANDLER,
-        request_options: Dict[str, Any] = None,
+        error_params: Dict[str, Any] = None,
     ):
         """Construct a new Quantinuum backend.
 
@@ -175,9 +175,8 @@ class QuantinuumBackend(Backend):
         :type simulator: str, optional
         :param api_handler: Instance of API handler, defaults to DEFAULT_API_HANDLER
         :type api_handler: QuantinuumAPI
-        :param request_options: Extra options to add to the request body as a
-          json-style dictionary, defaults to None.
-        :type request_options: Optional[Dict[str, Any]], optional.
+        :param error_params: Parameters defining errors on the H-series emulator of choice. Specified in a json-style dictionary, defaults to None.
+        :type error_params: Optional[Dict[str, Any]], optional.
         """
 
         super().__init__()
@@ -194,10 +193,7 @@ class QuantinuumBackend(Backend):
 
         self.api_handler.provider = provider
 
-        if request_options is None:
-            self.request_options = {}
-        else:
-            self.request_options = request_options
+        self.error_params = error_params
 
     @classmethod
     def _available_devices(
@@ -442,7 +438,8 @@ class QuantinuumBackend(Backend):
             body["options"]["compiler-options"] = {"parametrized_zz": True}
 
         # apply any overrides or extra options
-        body.update(self.request_options)
+        if self.error_params is not None:
+            body["options"]["error-params"] = self.error_params
 
         try:
             res = self.api_handler._submit_job(body)
